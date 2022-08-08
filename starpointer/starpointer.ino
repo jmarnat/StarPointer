@@ -1,3 +1,5 @@
+// https://www.firediy.fr/article/mesurer-des-angles-avec-un-arduino-drone-ch-7
+
 // MPU should be connected as so:
 // SCL: PIN A5
 //
@@ -28,19 +30,52 @@ int i_sample;
 
 
 
+void printInitialReadings() {
+  unsigned long int Micros;
+  Serial.println("Micros,AcX, AcY, AcZ, GyX, GyY, GyZ");
 
+  for (int i = 0; i < 300; i++) {
+    Wire.beginTransmission(MPU_addr);
+    Wire.write(0x3B); // starting with register 0x3B (ACCEL_XOUT_H)
+    Wire.endTransmission(false);
 
+    Micros = micros();
+    Wire.requestFrom(MPU_addr, 14, true);
+    AcX = Wire.read() << 8 | Wire.read();
+    AcY = Wire.read() << 8 | Wire.read();
+    AcZ = Wire.read() << 8 | Wire.read();
+    Tmp = Wire.read() << 8 | Wire.read(); // 0x41 (TEMP_OUT_H) & 0x42 (TEMP_OUT_L)
+    GyX = Wire.read() << 8 | Wire.read(); // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
+    GyY = Wire.read() << 8 | Wire.read(); // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
+    GyZ = Wire.read() << 8 | Wire.read(); // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
 
-void initSampling() {
-  Wire.beginTransmission(MPU_addr);
-  Wire.write(0x3B); // starting with register 0x3B (ACCEL_XOUT_H)
-  Wire.endTransmission(false);
+  
+    Serial.print(Micros);
+    Serial.print(",");
+    Serial.print(AcX);
+    Serial.print(",");
+    Serial.print(AcY);
+    Serial.print(",");
+    Serial.print(AcZ);
+    Serial.print(",");
+    Serial.print(GyX);
+    Serial.print(",");
+    Serial.print(GyY);
+    Serial.print(",");
+    Serial.print(GyZ);
+    Serial.println();
+
+  }
+
 }
+
 
 void takeSample() {
   if (isReadyForSmoothing()) return;
 
-  initSampling();
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x3B); // starting with register 0x3B (ACCEL_XOUT_H)
+  Wire.endTransmission(false);
 
   Wire.requestFrom(MPU_addr, 14, true);
   AcX = Wire.read() << 8 | Wire.read();
@@ -62,22 +97,24 @@ bool isReadyForSmoothing() {
 }
 
 
+
+
 void setup() {
   delay(3000);
   Serial.begin(9600);
-//  Serial.println("Starting sequence.");
+  //  Serial.println("Starting sequence.");
 
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B); // PWR_MGMT_1 register
-  Wire.write(0); // set to zero (wakes up the MPU-6050)
+  Wire.write(0);   // set to zero (wakes up the MPU-6050)
   res = Wire.endTransmission(true);
 
-//  if (res == 0) {
-//    Serial.println("MPU connected.");
-//  } else {
-//    Serial.println("ERROR: MPU not found !");
-//  }
+  //  if (res == 0) {
+  //    Serial.println("MPU connected.");
+  //  } else {
+  //    Serial.println("ERROR: MPU not found !");
+  //  }
 
   AcX_sum = 0;
   AcY_sum = 0;
@@ -85,30 +122,33 @@ void setup() {
   i_sample = 0;
 
 
-  Serial.println("X,Y,Z,aX,aY,aZ");
-  initSampling();
+  // Serial.println("X,Y,Z,aX,aY,aZ");
+  // printInitialReadings();
+
 }
 
 void loop() {
+  // return;
+
   t_curr = millis();
   if (t_curr > (t_prev + (TRUE_SAMPLE_RATE_MS * i_sample))) {
-//    Serial.print("sample no ");
-//    Serial.println(i_sample);
+    //    Serial.print("sample no ");
+    //    Serial.println(i_sample);
     takeSample();
     //t_prev = t_curr;
 
-//    Serial.print(AcX);
-//    Serial.print(",");
-//    Serial.print(AcY);
-//    Serial.print(",");
-//    Serial.print(AcZ);
-//    Serial.print(",");
-//    Serial.print(AcX_avg);
-//    Serial.print(",");
-//    Serial.print(AcY_avg);
-//    Serial.print(",");
-//    Serial.print(AcZ_avg);
-//    Serial.println();
+    //    Serial.print(AcX);
+    //    Serial.print(",");
+    //    Serial.print(AcY);
+    //    Serial.print(",");
+    //    Serial.print(AcZ);
+    //    Serial.print(",");
+    //    Serial.print(AcX_avg);
+    //    Serial.print(",");
+    //    Serial.print(AcY_avg);
+    //    Serial.print(",");
+    //    Serial.print(AcZ_avg);
+    //    Serial.println();
 
     if (isReadyForSmoothing()) {
       // Serial.println("smoothing!");
@@ -120,13 +160,15 @@ void loop() {
       AcY_sum = 0;
       AcZ_sum = 0;
 
+      // float xAng = map(AcX_avg, minVal, maxVal, -90, 90);
+
       Serial.print(AcX_avg);
       Serial.print(",");
       Serial.print(AcY_avg);
       Serial.print(",");
       Serial.print(AcZ_avg);
       Serial.println();
-      
+
       i_sample = 0;
       t_prev = t_curr;
     }
@@ -167,14 +209,14 @@ void loop() {
 
 
 
-    /*
-  Serial.print(AcX);
-  Serial.print(",");
-  Serial.print(AcY);
-  Serial.print(",");
-  Serial.print(AcZ);
-  Serial.println();
-    */
+  /*
+    Serial.print(AcX);
+    Serial.print(",");
+    Serial.print(AcY);
+    Serial.print(",");
+    Serial.print(AcZ);
+    Serial.println();
+  */
 
   /*
     Serial.print(GyX);
